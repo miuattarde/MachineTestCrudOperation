@@ -1,0 +1,225 @@
+﻿@model CRUD_Operation.Models.ProductViewModel
+           @{Layout = null;}
+<script src="~/Scripts/jquery-1.10.2.min.js"></script>
+<script src="~/Scripts/bootstrap.min.js"></script>
+<link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+<div class="container" style="margin-top:3%">
+    <a href="#" class="btn btn-info" onclick="AddNewProduct(0)">Add New Product</a><br /><br />
+    <table class="table table-striped" >
+        <thead>
+            <tr>
+                <th>ProductId</th>
+                <th>ProductName</th>
+                <th>CategoryId</th>
+                <th>CategoryName</th>
+                <th>Action(Edit)</th>
+                <th>Action(Delete)</th>
+                @*<th><a href='#' class="btn btn-warning" onclick="EditProduct(0)"></a></th>
+                    <th><a href='#' class="btn btn-danger" onclick="DeleteProduct(0)"></a></th>*@
+            </tr>
+        </thead>
+        <tbody id="SetProductList">
+            <tr id="LoadingStatus"></tr>
+        </tbody>
+    </table>
+    <div id="pagedData">
+
+    </div>
+
+    <div class="modal fade" id="MyModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <a href="#" class="close" data-dissmiss="modal">&times;</a>
+                    <h4 id="ModalTitle"></h4>
+                </div>
+                <div class="modal-body">
+                    <form id="form">
+                        <fieldset id="submitform">
+                            @Html.HiddenFor(m => m.ProductId, new { @id = "ProdId" })
+                            <div class="form-group">
+                                @Html.TextBoxFor(m => m.ProductName, new { @id = "ProdName", @class = "form-control", @placeholder = "ProductName" })
+                            </div>
+                            <div class="form-group">
+                                @Html.DropDownListFor(m => m.CategoryId, ViewBag.ListOfCategory as SelectList, "Select Category", new { @id = "DropDwn", @class = "form-control" })
+                            </div>
+                            <div class="form-group">
+                                <a href="#" class="btn btn-block btn-danger" id="SaveProduct">Save</a>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="DeleteConfirmation">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <a href="#" class="close" data-dissmiss="modal">&times;</a>
+                    <h4>Delete Product Record</h4>
+                </div>
+                <div class="modal-body">
+                    <h4>Are you sure? You want to delete this record.</h4>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" class="btn btn-primary" data-dissmiss="modal">Cancel</a>
+                    <a href="#" class="btn btn-danger" onclick="ConfirmDelete()">Confirm</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        GetPageData(1);
+    });
+
+   // $("#LoadingStatus").html("Loading.....");
+    function GetPageData(pageNum, pageSize) {
+        $("#SetProductList").empty();
+        $("#pagedData").empty();
+        $.get("/Home/GetProductList", { pageNumber: pageNum, pageSize: pageSize }, function (response) {
+            var setdata = $("#SetProductList");
+            var rowData = "";
+            for (var i = 0; i < response.Data.length ; i++) {
+                rowData = rowData + '<tr class="row_' + response.Data[i].ProductId + '">' +
+               '<td>' + response.Data[i].ProductId + '</td>' +
+               '<td>' + response.Data[i].ProductName + '</td>' +
+               '<td>' + response.Data[i].CategoryId + '</td>' +
+               '<td>' + response.Data[i].CategoryName + '</td>' +
+               '<td>' + '<a href="#" class="btn btn-warning" onclick="EditProduct(' + response.Data[i].ProductId + ')"><span class="glyphicon glyphicon-edit"></span></a>' + '</td>' +
+               '<td>' + '<a href="#" class="btn btn-danger" onclick="DeleteProduct(' + response.Data[i].ProductId + ')"><span class="glyphicon glyphicon-trash"></span></a>' + '</td>' +
+               '</tr>';
+            }
+            setdata.append(rowData);
+            PagingTemplate(response.TotalPages, response.CurrentPage);
+        });
+    }
+
+    function PagingTemplate(totalPage, currentPage) {
+        var template = "";
+        var TotalPages = totalPage;
+        var CurrentPage = currentPage;
+        var PageNumberArray = Array();
+
+
+        var countIncr = 1;
+        for (var i = currentPage; i <= totalPage; i++) {
+            PageNumberArray[0] = currentPage;
+            if (totalPage != currentPage && PageNumberArray[countIncr - 1] != totalPage) {
+                PageNumberArray[countIncr] = i + 1;
+            }
+            countIncr++;
+        };
+        PageNumberArray = PageNumberArray.slice(0, 5);
+        var FirstPage = 1;
+        var LastPage = totalPage;
+        if (totalPage != currentPage) {
+            var ForwardOne = currentPage + 1;
+        }
+        var BackwardOne = 1;
+        if (currentPage > 1) {
+            BackwardOne = currentPage - 1;
+        }
+        template = "<p>" + CurrentPage + " of " + TotalPages + " pages</p>"
+        template = template + '<ul class="pager">' +
+             '<li class="previous"><a href="#" onclick="GetPageData(' + FirstPage + ')"><i class="fa fa-fast-backward"></i>&nbsp;First</a></li>' +
+             '<li><select ng-model="pageSize" id="selectedId"><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="150">150</option></select> </li>' +
+             '<li><a href="#" onclick="GetPageData(' + BackwardOne + ')"><i class="glyphicon glyphicon-backward"></i></a>';
+
+        var numberingLoop = "";
+        for (var i = 0; i < PageNumberArray.length; i++) {
+            numberingLoop = numberingLoop + '<a class="page-number active" onclick="GetPageData(' + PageNumberArray[i] + ')" href="#">' + PageNumberArray[i] + ' &nbsp;&nbsp;</a>'
+        }
+        template = template + numberingLoop + '<a href="#" onclick="GetPageData(' + ForwardOne + ')" ><i class="glyphicon glyphicon-forward"></i></a></li>' +
+            '<li class="next"><a href="#" onclick="GetPageData(' + LastPage + ')">Last&nbsp;<i class="fa fa-fast-forward"></i></a></li></ul>';
+        $("#pagedData").append(template);
+        $('#selectedId').change(function () {
+            GetPageData(1, $(this).val());
+        });
+    }
+
+
+    //$("#LoadingStatus").html("Loading.....");
+    //$.get("/Home/GetProductList", null, DataBind);
+    //function DataBind(ProductList) {
+    //    var setdata = $("#SetProductList");
+    //    for(var i=0;i<ProductList.length;i++)
+    //    {
+    //        var Data = "<tr class='row_" + ProductList[i].ProductId + "'>" +
+    //        "<td>" + ProductList[i].ProductId + "</td>" +
+    //        "<td>" + ProductList[i].ProductName + "</td>" +
+    //        "<td>" + ProductList[i].CategoryId + "</td>" +
+    //        "<td>" + ProductList[i].CategoryName + "</td>" +
+    //        "<td>" + "<a href='#' class='btn btn-warning' onclick='EditProduct("+ProductList[i].ProductId+")'><span class='glyphicon glyphicon-edit'></span></a>" + "</td>" +
+    //        "<td>" + "<a href='#' class='btn btn-danger' onclick='DeleteProduct("+ProductList[i].ProductId+")'><span class='glyphicon glyphicon-trash'></span></a>" + "</td>" +
+    //        "</tr>";
+
+    //        setdata.append(Data);
+    //        $("#LoadingStatus").html("");
+    //        }
+    //}
+
+    function AddNewProduct(ProductId)
+    {
+        $("#form")[0].reset();
+        $("#ProdId").val(0);
+        $("#DropDwn option:selected").text("Select Category");
+        $("#ModalTitle").html("Add New Product");
+        $("#MyModal").modal();
+    }
+
+    function EditProduct(ProductId)
+    {
+        var url = "/Home/GetProductById?ProductId=" + ProductId;
+        $("#ModalTitle").html("Update Product Record");
+        $("#MyModal").modal();
+        $.ajax({
+            type:"GET",
+            url:url,
+            success:function(data){
+                var obj=JSON.parse(data);
+                $("#ProdId").val(obj.ProductId);
+                $("#ProdName").val(obj.ProductName);
+                $("#DropDwn option:selected").text(obj.Category.CategoryName);
+                $("#DropDwn option:selected").val(obj.CategoryId);
+            }
+        })
+    }
+
+    $("#SaveProduct").click(function(){
+        var data = $("#submitform").serialize();
+        $.ajax({
+            type: "Post",
+            url: "/Home/SaveProductDetails",
+            data:data,
+            success: function (result) {
+                alert("Success..!");
+                window.location.href = "/Home/index";
+                $("MyModal").modal("hide");
+            }
+        })
+    })
+
+    function DeleteProduct(ProductId) {     
+        $("#ProdId").val(ProductId);
+        $("#DeleteConfirmation").modal("show");       
+    }
+    
+    function ConfirmDelete() {
+        var ProdId = $("#ProdId").val();
+        var url = "/Home/DeleteProductDetails?ProductId=" + ProdId;
+        $.ajax({
+            type: "Post",
+            url: url,
+            success: function (result) {               
+                $("#DeleteConfirmation").modal("hide");               
+                window.location.href = "/Home/index";
+                $(".row_" + ProdId).remove();
+            }
+        })
+    }
+</script>
